@@ -159,6 +159,33 @@ jobs:
             - project/.circleci/ansible/inventory.txt 
       - destroy-environment 
 
+  configure-infrastructure:
+    docker:
+      # Docker image here that supports Ansible
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - add_ssh_keys:
+           fingerprints: ["e7:51:41:83:97:33:f0:3d:4d:e3:c0:2c:56:e3:01:29"]
+      - run:
+          name: Install dependencies
+          command: |
+            yum install -y gcc libffi-devel python3 epel-release && \
+            yum install -y python3-pip && \
+            yum install -y wget && \
+            yum clean all && \
+            yum update -y && \
+            yum install -y tar gzip curl unzip openssh-server openssh-clients && \
+            python3 -m pip install ansible
+      - attach_workspace:
+          at: ~/
+
+      - run:
+          name: Configure server
+          command: |
+            cd .circleci/ansible
+            ansible-playbook -i inventory.txt configure-server.yml
+
 workflows:
   default:
     jobs:
@@ -176,4 +203,6 @@ workflows:
           requires: [test-frontend, test-backend, scan-frontend, scan-backend]
           filters:
             branches:
-              only: [main]           
+              only: [main]   
+      - configure-infrastructure:
+          requires: [deploy-infrastructure] 
