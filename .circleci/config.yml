@@ -361,67 +361,133 @@ jobs:
       - destroy-environment
 
   cloudfront-update:
+    # docker:
+    #   # Docker image here that supports AWS CLI
+    #   - image: circleci/node:13.8.0
+    # steps:
+    #   # Checkout code from git
+    #   - checkout
+    #   - run:
+    #       name: Install dependencies
+    #       command: |
+    #         sudo apt install -y tar curl gzip
+    #         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    #         unzip -qq awscliv2.zip
+    #         sudo ./aws/install
+    #   - run:
+    #       name: Update cloudfront distribution
+    #       command: |
+    #         # your code here
+    #         export OldWorkflowID=$(aws cloudformation list-exports \
+    #         --query "Exports[?Name==\`WorkflowID\`].Value" \
+    #         --no-paginate --output text)
+    #         echo "${OldWorkflowID}" >> ~/OldWorkflowID.txt
+    #         echo "${OldWorkflowID}"
+    #         aws cloudformation deploy \
+    #         --template-file .circleci/files/cloudfront.yml \
+    #         --stack-name InitialStack \
+    #         --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7} \
+    #         --tags project=udapeople     
+    #   # Here's where you will add some code to rollback on failure 
+    #   - revert-migrations
+    #   - destroy-environment    
+
     docker:
-      # Docker image here that supports AWS CLI
-      - image: circleci/node:13.8.0
+      - image: amazon/aws-cli
     steps:
-      # Checkout code from git
       - checkout
       - run:
           name: Install dependencies
           command: |
-            sudo apt install -y tar curl gzip
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip -qq awscliv2.zip
-            sudo ./aws/install
+            yum -y install tar gzip
+      - run:
+          name: Retrieve stack workflow id
+          command: |
+            export OldWorkFlowID=$(aws cloudformation list-exports \
+              --query "Exports[?Name==\`WorkflowID\`].Value" \
+              --no-paginate \
+              --output text)
+            echo $OldWorkFlowID >> ~/OldWorkflowID.txt
+            cat ~/OldWorkflowID.txt
       - run:
           name: Update cloudfront distribution
           command: |
-            # your code here
-            export OldWorkflowID=$(aws cloudformation list-exports \
-            --query "Exports[?Name==\`WorkflowID\`].Value" \
-            --no-paginate --output text)
-            echo "${OldWorkflowID}" >> ~/OldWorkflowID.txt
-            echo "${OldWorkflowID}"
+            # Change the initial stack name, as applicable to you
             aws cloudformation deploy \
             --template-file .circleci/files/cloudfront.yml \
             --stack-name InitialStack \
-            --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7} \
-            --tags project=udapeople     
-      # Here's where you will add some code to rollback on failure 
+            --parameter-overrides WorkflowID="${CIRCLE_WORKFLOW_ID:0:7}" \
+            --tags project=udapeople
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - OldWorkflowID.txt
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment
       - revert-migrations
-      - destroy-environment    
 
   cleanup:
+      # docker:
+      #   # Docker image with AWS CLI support
+      #   - image: amazon/aws-cli
+      # steps:
+      #   # check out from git
+      #   - checkout    
+      #   - run:
+      #       name: Get old stack workflow id
+      #       command: |
+      #         export OldWorkflowID=$(aws cloudformation \
+      #           list-exports --query "Exports[?Name==\`WorkflowID\`].Value" \
+      #             --no-paginate --output text)
+
+      #         export STACKS=[($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
+      #                --stack-status-filter CREATE_COMPLETE --no-paginate --output text))]
+
+      #         echo OldWorkflowID: "${OldWorkflowID}" 
+      #         echo Stack names: "${STACKS[@]}"          
+      #   - run:
+      #       name: Remove old stacks and files
+      #       command: |
+      #         if [[ "${STACKS[@]}" =~ "${OldWorkflowID}" ]]
+      #         then
+      #           echo "----------Deletes cofirmed------------"
+      #           aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive || true
+      #           aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}" || true
+      #           aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}" || true
+      #         else
+      #           echo  "----------------CleanUp Failed------------"                
+      #         fi   
+
       docker:
-        # Docker image with AWS CLI support
         - image: amazon/aws-cli
       steps:
-        # check out from git
         - checkout
-
         - run:
-            name: Remove old stacks and files
+            name: Install dependencies
             command: |
-              export OldWorkflowID=$(aws cloudformation \
-                list-exports --query "Exports[?Name==\`WorkflowID\`].Value" \
-                  --no-paginate --output text)
-
-              export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
-                     --stack-status-filter CREATE_COMPLETE --no-paginate --output text))
-
-              echo OldWorkflowID: "${OldWorkflowID}" 
-              echo Stack names: "${STACKS[@]}"    
-
-              if [[ "${OldWorkflowID}" =~ "${STACKS[@]}"  ]]
+              yum install -y gcc-c++ make 
+              yum -y install tar gzip
+        - attach_workspace:
+            at: ~/ 
+        - run:
+            name: Get old stack workflow id and Remove old stacks and files
+            command: |
+              export OldWorkflowID=$(cat ~/OldWorkflowID.txt)
+              echo OldWorkflowID:"${OldWorkflowID}"
+              echo CIRCLE_WORKFLOW_ID "${CIRCLE_WORKFLOW_ID:0:7}"
+              echo THIS IS THE OldWorkflowID: "${OldWorkflowID}"
+              if [[ "${CIRCLE_WORKFLOW_ID:0:7}" =~ "${OldWorkflowID}" ]]
               then
-                echo "----------Deletes cofirmed------------"
-                aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive || true
-                aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}" || true
-                aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}" || true
+                echo '----NOTHING CHANGE-----'
               else
-                    echo  "----------------CleanUp Failed------------"
-              fi                                         
+                aws s3 rb s3://udapeople-${OldWorkflowID} --force
+                aws cloudformation delete-stack --stack-name udapeople-backend-${OldWorkflowID}
+                aws cloudformation delete-stack --stack-name udapeople-frontend-${OldWorkflowID}
+                echo '----DELETED-----'
+              fi
+        # Here's where you will add some code to rollback on failure
+        - destroy-environment
+        - revert-migrations                                                  
 
 workflows:
   default:
