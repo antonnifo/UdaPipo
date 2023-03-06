@@ -43,10 +43,7 @@ commands:
               echo "reverting migrations"
               cd ~/project/backend
               npm install
-              npm run migrations:revert
-            else:
-              echo ${SUCCESS}
-              echo "Failed to revert migrations"  
+              npm run migrations:revert  
             fi
 
   destroy-environment:
