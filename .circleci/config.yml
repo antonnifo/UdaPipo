@@ -267,6 +267,7 @@ jobs:
   #     - revert-migrations 
 
 
+
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
@@ -287,8 +288,10 @@ jobs:
       - run:
           name: Send migration results to kvdb.io
           command: |
+            ls ~/
             echo ${MIGRATIONS_OUTPUT}
-            if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
+            echo ${CIRCLE_WORKFLOW_ID:0:7}
+            if [[ 'has been executed successfully.' =~ $(grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt | uniq) ]]
             then
               curl --insecure https://kvdb.io/NmA9nU47wLDKwKX6vzUbd9/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
             fi
