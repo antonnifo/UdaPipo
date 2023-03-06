@@ -39,15 +39,15 @@ commands:
           when: on_fail
           command: |
             # Curl command here to see if there was a successful migration associated with the workflow id, store result in SUCCESS variable
-            SUCCESS=$(curl --insecure  https://kvdb.io/NmA9nU47wLDKwKX6vzUbd9/migration_<<parameters.workflow_id>>)
+            SUCCESS=$(curl --insecure  "https://kvdb.io/NmA9nU47wLDKwKX6vzUbd9/migration_<<parameters.workflow_id>>")
             echo ${SUCCESS}
             echo ${CIRCLE_WORKFLOW_ID:0:7}
-            if (( $SUCCESS==1 ))
+            if [[ $SUCCESS==1 ]]``
             then
               echo "reverting migrations"
               cd ~/project/backend
               npm install
-              npm run migrations:revert
+              npm run migrations:rever
             else:
               echo ${SUCCESS}
               echo "Failed to revert migrations"  
